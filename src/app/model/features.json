@@ -1,0 +1,74 @@
+{
+  "model_version": "v1.0.0",
+  "target": "Rings",
+  "target_description": "Jumlah cincin cangkang (Rings); estimasi umur (tahun) = Rings + 1.5",
+  "feature_order": [
+    "Sex",
+    "Length",
+    "Diameter",
+    "Height",
+    "Whole weight",
+    "Shucked weight",
+    "Viscera weight",
+    "Shell weight"
+  ],
+  "categorical_features": {
+    "Sex": {
+      "type": "string",
+      "allowed_values": [
+        "M",
+        "F",
+        "I"
+      ],
+      "description": "M = Male, F = Female, I = Infant"
+    }
+  },
+  "numerical_features": {
+    "Length": {
+      "type": "float",
+      "min_suggested": 0.0
+    },
+    "Diameter": {
+      "type": "float",
+      "min_suggested": 0.0
+    },
+    "Height": {
+      "type": "float",
+      "min_suggested": 0.0
+    },
+    "Whole weight": {
+      "type": "float",
+      "min_suggested": 0.0
+    },
+    "Shucked weight": {
+      "type": "float",
+      "min_suggested": 0.0
+    },
+    "Viscera weight": {
+      "type": "float",
+      "min_suggested": 0.0
+    },
+    "Shell weight": {
+      "type": "float",
+      "min_suggested": 0.0
+    }
+  },
+  "sample_request": {
+    "features": {
+      "Sex": "M",
+      "Length": 0.455,
+      "Diameter": 0.365,
+      "Height": 0.095,
+      "Whole weight": 0.514,
+      "Shucked weight": 0.2245,
+      "Viscera weight": 0.101,
+      "Shell weight": 0.15
+    }
+  },
+  "environment": {
+    "python_version": "3.15.2",
+    "scikit_learn_version": "1.9.1",
+    "pandas_version": "3.1.1",
+    "joblib_version": "1.6.0"
+  }
+}
