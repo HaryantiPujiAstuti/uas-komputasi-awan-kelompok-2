@@ -1,50 +1,32 @@
 {
-  "selected_model": "Random Forest",
-  "random_state": 42,
-  "split_ratio": {
-    "train": 3341,
-    "test": 836
-  },
-  "cross_validation_5fold": {
-    "Baseline (Dummy Mean)": {
-      "cv_mae": 2.3574,
-      "cv_rmse": 3.2065,
-      "cv_r2": -0.0019
-    },
+  "best_model": "Gradient Boosting",
+  "cv_results": {
     "Ridge Regression": {
-      "cv_mae": 1.5885,
-      "cv_rmse": 2.2287,
-      "cv_r2": 0.514
+      "mae": 1.5885,
+      "rmse": 2.2287,
+      "r2": 0.514
     },
     "Random Forest": {
-      "cv_mae": 1.5133,
-      "cv_rmse": 2.1306,
-      "cv_r2": 0.5565
+      "mae": 1.5381,
+      "rmse": 2.1548,
+      "r2": 0.5465
     },
     "Gradient Boosting": {
-      "cv_mae": 1.5144,
-      "cv_rmse": 2.1381,
-      "cv_r2": 0.5534
+      "mae": 1.518,
+      "rmse": 2.1436,
+      "r2": 0.5513
     }
   },
-  "test_set_evaluation": {
-    "baseline": {
-      "mae": 2.3848,
-      "rmse": 3.2906,
-      "r2": -0.0003
-    },
-    "selected_model": {
-      "mae": 1.5465,
-      "rmse": 2.2142,
-      "r2": 0.5471
-    },
-    "beats_baseline": true,
-    "rmse_improvement_pct": 32.71
+  "baseline_test": {
+    "mae": 2.3848,
+    "rmse": 3.2906,
+    "r2": -0.0003
   },
-  "environment": {
-    "python_version": "3.15.2",
-    "scikit_learn_version": "1.9.1",
-    "pandas_version": "3.1.1",
-    "joblib_version": "1.6.0"
-  }
+  "test_metrics": {
+    "mae": 1.5761,
+    "rmse": 2.248,
+    "r2": 0.5332
+  },
+  "n_train": 3341,
+  "n_test": 836
 }

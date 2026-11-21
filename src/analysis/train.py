@@ -1,225 +1,167 @@
-"""
-Skrip Training & Evaluasi Model Prediksi Umur Abalone (src/analysis/train.py)
-Peran: Orang 1 (Analysis Layer)
-Deskripsi: Membaca dataset Abalone, melakukan split tanpa data leakage, membandingkan
-           baseline dengan model kandidat via Cross-Validation, mengevaluasi pada test set
-           satu kali, dan mengekspor artefak model untuk API (Orang 3).
-"""
-
 import json
 import os
-import platform
 import sys
-
 import joblib
+import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import sklearn
-from sklearn.dummy import DummyRegressor
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import Ridge
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 from sklearn.model_selection import KFold, cross_validate, train_test_split
 from sklearn.pipeline import Pipeline
 
-from preprocess import CAT_COLS, NUM_COLS, TARGET_COL, build_preprocessor
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 
-RANDOM_STATE = 42
-DATA_URL = "https://archive.ics.uci.edu/ml/machine-learning-databases/abalone/abalone.data"
-LOCAL_CSV_PATH = "src/analysis/data/abalone.csv"
-LOCAL_RAW_PATH = "abalone.data"
-LOCAL_XLSX_PATH = "Dataset_Abalone_Lengkap.xlsx"
+from data_loader import load_data
+from preprocess import build_preprocessor
 
 
-def load_abalone_data():
-    """Memuat data dari file lokal jika ada, atau mengunduh langsung dari UCI Repository."""
-    columns = ["Sex"] + NUM_COLS + [TARGET_COL]
+def hitung_metrik(y_true, y_pred):
+    return {
+        "mae": round(float(mean_absolute_error(y_true, y_pred)), 4),
+        "rmse": round(float(root_mean_squared_error(y_true, y_pred)), 4),
+        "r2": round(float(r2_score(y_true, y_pred)), 4),
+    }
 
-    if os.path.exists(LOCAL_CSV_PATH):
-        df = pd.read_csv(LOCAL_CSV_PATH)
-    elif os.path.exists(LOCAL_RAW_PATH):
-        df = pd.read_csv(LOCAL_RAW_PATH, header=None, names=columns)
-    elif os.path.exists(LOCAL_XLSX_PATH):
-        df = pd.read_excel(LOCAL_XLSX_PATH, sheet_name="Dataset_Abalone")
-    else:
-        print(f"Mengunduh dataset dari {DATA_URL} ...")
-        df = pd.read_csv(DATA_URL, header=None, names=columns)
-        os.makedirs(os.path.dirname(LOCAL_CSV_PATH), exist_ok=True)
-        df.to_csv(LOCAL_CSV_PATH, index=False)
 
-    return df
+def simpan_plot_evaluasi(y_test, pred_test, output_path="docs/evidence/evaluasi_test_set.png"):
+    residual = np.asarray(y_test) - np.asarray(pred_test)
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+    # Aktual vs Prediksi
+    axes[0].scatter(y_test, pred_test, alpha=0.5)
+    nilai_min = min(float(np.min(y_test)), float(np.min(pred_test)))
+    nilai_max = max(float(np.max(y_test)), float(np.max(pred_test)))
+    axes[0].plot(
+        [nilai_min, nilai_max],
+        [nilai_min, nilai_max],
+        "r--",
+    )
+    axes[0].set_title("Aktual vs Prediksi (Test Set)")
+    axes[0].set_xlabel("Rings Aktual")
+    axes[0].set_ylabel("Rings Prediksi")
+
+    # Plot Residual
+    axes[1].scatter(pred_test, residual, alpha=0.5)
+    axes[1].axhline(0, color="red", linestyle="--")
+    axes[1].set_title("Plot Residual (Test Set)")
+    axes[1].set_xlabel("Rings Prediksi")
+    axes[1].set_ylabel("Residual (Aktual - Prediksi)")
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
 
 
 def main():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.abspath(os.path.join(base_dir, "..", ".."))
+    os.chdir(root_dir)
+
     os.makedirs("src/app/model", exist_ok=True)
     os.makedirs("docs/evidence", exist_ok=True)
 
-    # 1. Memuat Data
-    df = load_abalone_data()
-    print(f"Total observasi awal: {len(df)} baris, {df.shape[1]} kolom")
+    lokasi_data = os.path.join(root_dir, "Dataset_Abalone_Lengkap.xlsx")
+    df = load_data(lokasi_data)
+    target = "Rings"
+    X = df.drop(columns=[target])
+    y = df[target]
 
-    # Cek duplikasi persis
-    dup_count = df.duplicated().sum()
-    print(f"Jumlah baris duplikat: {dup_count}")
-
-    feature_cols = CAT_COLS + NUM_COLS
-    X = df[feature_cols].copy()
-    y = df[TARGET_COL].copy()
-
-    # 2. Train-Test Split (80:20) SEBELUM preprocessing untuk mencegah data leakage
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.20, random_state=RANDOM_STATE
+        X, y, test_size=0.20, random_state=42
     )
-    print(f"Train set: {len(X_train)} baris | Test set: {len(X_test)} baris")
 
-    # 3. Definisi Baseline & Model Kandidat
-    models = {
-        "Baseline (Dummy Mean)": DummyRegressor(strategy="mean"),
-        "Ridge Regression": Ridge(alpha=1.0, random_state=RANDOM_STATE),
+    kolom_kategori = ["Sex"]
+    kolom_angka = [c for c in X.columns if c not in kolom_kategori]
+
+    baseline_val = float(y_train.mean())
+    pred_baseline = np.full(shape=len(y_test), fill_value=baseline_val)
+    metrik_baseline = hitung_metrik(y_test, pred_baseline)
+
+    model_kandidat = {
+        "Ridge Regression": Ridge(alpha=1.0, random_state=42),
         "Random Forest": RandomForestRegressor(
-            n_estimators=200, max_depth=12, min_samples_leaf=4, random_state=RANDOM_STATE, n_jobs=-1
+            n_estimators=200, random_state=42, n_jobs=-1
         ),
-        "Gradient Boosting": GradientBoostingRegressor(
-            n_estimators=150, learning_rate=0.05, max_depth=4, random_state=RANDOM_STATE
-        ),
+        "Gradient Boosting": GradientBoostingRegressor(random_state=42),
     }
 
-    # 4. Validasi Silang (5-Fold CV) HANYA pada Train Set
-    cv = KFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
-    scoring = {
-        "mae": "neg_mean_absolute_error",
-        "rmse": "neg_root_mean_squared_error",
-        "r2": "r2",
-    }
-
+    cv = KFold(n_splits=5, shuffle=True, random_state=42)
     cv_summary = {}
-    best_model_name = None
-    best_cv_rmse = float("inf")
-    best_pipeline = None
+    nama_terbaik = None
+    rmse_terbaik = float("inf")
+    model_terbaik = None
 
-    print("\n=== HASIL 5-FOLD CROSS-VALIDATION (TRAIN SET) ===")
-    for name, estimator in models.items():
-        pipe = Pipeline(
-            steps=[
-                ("preprocessor", build_preprocessor(NUM_COLS, CAT_COLS)),
-                ("regressor", estimator),
-            ]
+    for nama, estimator in model_kandidat.items():
+        pipa = Pipeline(steps=[
+            ("preprocess", build_preprocessor(kolom_angka, kolom_kategori)),
+            ("model", estimator),
+        ])
+        hasil_cv = cross_validate(
+            pipa,
+            X_train,
+            y_train,
+            cv=cv,
+            scoring={
+                "mae": "neg_mean_absolute_error",
+                "rmse": "neg_root_mean_squared_error",
+                "r2": "r2",
+            },
+            n_jobs=-1,
         )
-        scores = cross_validate(pipe, X_train, y_train, cv=cv, scoring=scoring, n_jobs=-1)
-        cv_mae = float(-np.mean(scores["test_mae"]))
-        cv_rmse = float(-np.mean(scores["test_rmse"]))
-        cv_r2 = float(np.mean(scores["test_r2"]))
+        mae_cv = round(float(-np.mean(hasil_cv["test_mae"])), 4)
+        rmse_cv = round(float(-np.mean(hasil_cv["test_rmse"])), 4)
+        r2_cv = round(float(np.mean(hasil_cv["test_r2"])), 4)
 
-        cv_summary[name] = {
-            "cv_mae": round(cv_mae, 4),
-            "cv_rmse": round(cv_rmse, 4),
-            "cv_r2": round(cv_r2, 4),
-        }
-        print(f"{name:24s} -> CV MAE: {cv_mae:.4f} | CV RMSE: {cv_rmse:.4f} | CV R2: {cv_r2:.4f}")
+        cv_summary[nama] = {"mae": mae_cv, "rmse": rmse_cv, "r2": r2_cv}
+        print(f"{nama:18s} -> MAE: {mae_cv:.4f} | RMSE: {rmse_cv:.4f} | R2: {r2_cv:.4f}")
 
-        if cv_rmse < best_cv_rmse:
-            best_cv_rmse = cv_rmse
-            best_model_name = name
-            best_pipeline = pipe
+        if rmse_cv < rmse_terbaik:
+            rmse_terbaik = rmse_cv
+            nama_terbaik = nama
+            model_terbaik = pipa
 
-    # 5. Latih Ulang Model Terbaik pada Seluruh Train Set & Evaluasi SATU KALI pada Test Set
-    print(f"\nModel terbaik berdasarkan CV RMSE: {best_model_name}")
-    best_pipeline.fit(X_train, y_train)
+    model_terbaik.fit(X_train, y_train)
+    pred_test = model_terbaik.predict(X_test)
+    metrik_test = hitung_metrik(y_test, pred_test)
 
-    y_pred_test = best_pipeline.predict(X_test)
-    test_mae = float(mean_absolute_error(y_test, y_pred_test))
-    test_rmse = float(np.sqrt(mean_squared_error(y_test, y_pred_test)))
-    test_r2 = float(r2_score(y_test, y_pred_test))
+    simpan_plot_evaluasi(y_test, pred_test, "docs/evidence/evaluasi_test_set.png")
 
-    # Evaluasi baseline pada test set untuk perbandingan objektif
-    baseline_pipe = Pipeline(
-        steps=[
-            ("preprocessor", build_preprocessor(NUM_COLS, CAT_COLS)),
-            ("regressor", models["Baseline (Dummy Mean)"]),
-        ]
+    print(f"\nModel terbaik: {nama_terbaik}")
+    print(
+        f"Baseline Test -> MAE: {metrik_baseline['mae']:.4f} | "
+        f"RMSE: {metrik_baseline['rmse']:.4f} | R2: {metrik_baseline['r2']:.4f}"
     )
-    baseline_pipe.fit(X_train, y_train)
-    y_pred_base = baseline_pipe.predict(X_test)
-    base_test_mae = float(mean_absolute_error(y_test, y_pred_base))
-    base_test_rmse = float(np.sqrt(mean_squared_error(y_test, y_pred_base)))
-    base_test_r2 = float(r2_score(y_test, y_pred_base))
+    print(
+        f"{nama_terbaik:13s} -> MAE: {metrik_test['mae']:.4f} | "
+        f"RMSE: {metrik_test['rmse']:.4f} | R2: {metrik_test['r2']:.4f}"
+    )
 
-    beats_baseline = bool(test_rmse < base_test_rmse and test_mae < base_test_mae)
+    joblib.dump(model_terbaik, "src/app/model/model.joblib")
 
-    print("\n=== HASIL EVALUASI AKHIR (TEST SET - DIEVALUASI 1 KALI) ===")
-    print(f"Baseline Test       -> MAE: {base_test_mae:.4f} | RMSE: {base_test_rmse:.4f} | R2: {base_test_r2:.4f}")
-    print(f"{best_model_name:19s} -> MAE: {test_mae:.4f} | RMSE: {test_rmse:.4f} | R2: {test_r2:.4f}")
-    print(f"Mengungguli Baseline: {beats_baseline}")
-
-    # 6. Simpan Artefak Model & Metadata untuk Orang 3 (API Layer)
-    model_path = "src/app/model/model.joblib"
-    joblib.dump(best_pipeline, model_path)
-
-    features_info = {
-        "model_version": "v1.0.0",
-        "target": TARGET_COL,
-        "target_description": "Jumlah cincin cangkang (Rings); estimasi umur (tahun) = Rings + 1.5",
-        "feature_order": feature_cols,
-        "categorical_features": {
-            "Sex": {
-                "type": "string",
-                "allowed_values": ["M", "F", "I"],
-                "description": "M = Male, F = Female, I = Infant",
-            }
-        },
-        "numerical_features": {
-            col: {"type": "float", "min_suggested": 0.0} for col in NUM_COLS
-        },
-        "sample_request": {
-            "features": {
-                "Sex": "M",
-                "Length": 0.455,
-                "Diameter": 0.365,
-                "Height": 0.095,
-                "Whole weight": 0.514,
-                "Shucked weight": 0.2245,
-                "Viscera weight": 0.101,
-                "Shell weight": 0.15,
-            }
-        },
-        "environment": {
-            "python_version": platform.python_version(),
-            "scikit_learn_version": sklearn.__version__,
-            "pandas_version": pd.__version__,
-            "joblib_version": joblib.__version__,
-        },
+    info_fitur = {
+        "target": target,
+        "features": list(X.columns),
+        "numeric_features": kolom_angka,
+        "categorical_features": kolom_kategori,
+        "sex_categories": ["M", "F", "I"],
     }
     with open("src/app/model/features.json", "w", encoding="utf-8") as f:
-        json.dump(features_info, f, indent=2)
+        json.dump(info_fitur, f, indent=2)
 
-    metrics_info = {
-        "selected_model": best_model_name,
-        "random_state": RANDOM_STATE,
-        "split_ratio": {"train": len(X_train), "test": len(X_test)},
-        "cross_validation_5fold": cv_summary,
-        "test_set_evaluation": {
-            "baseline": {
-                "mae": round(base_test_mae, 4),
-                "rmse": round(base_test_rmse, 4),
-                "r2": round(base_test_r2, 4),
-            },
-            "selected_model": {
-                "mae": round(test_mae, 4),
-                "rmse": round(test_rmse, 4),
-                "r2": round(test_r2, 4),
-            },
-            "beats_baseline": beats_baseline,
-            "rmse_improvement_pct": round(((base_test_rmse - test_rmse) / base_test_rmse) * 100, 2),
-        },
-        "environment": features_info["environment"],
+    ringkasan_metrik = {
+        "best_model": nama_terbaik,
+        "cv_results": cv_summary,
+        "baseline_test": metrik_baseline,
+        "test_metrics": metrik_test,
+        "n_train": int(len(X_train)),
+        "n_test": int(len(X_test)),
     }
     with open("docs/evidence/metrics.json", "w", encoding="utf-8") as f:
-        json.dump(metrics_info, f, indent=2)
-
-    print("\nArtefak berhasil disimpan:")
-    print("- src/app/model/model.joblib")
-    print("- src/app/model/features.json")
-    print("- docs/evidence/metrics.json")
+        json.dump(ringkasan_metrik, f, indent=2)
 
 
 if __name__ == "__main__":
