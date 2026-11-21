@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import joblib
 import numpy as np
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
@@ -8,7 +9,12 @@ from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_err
 from sklearn.model_selection import KFold, cross_validate, train_test_split
 from sklearn.pipeline import Pipeline
 
-from preprocess import ambil_data_manual, buat_preprocessor
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
+from data_loader import load_data
+from preprocess import build_preprocessor
 
 
 def hitung_metrik(y_true, y_pred):
@@ -27,7 +33,8 @@ def main():
     os.makedirs("src/app/model", exist_ok=True)
     os.makedirs("docs/evidence", exist_ok=True)
 
-    df = ambil_data_manual()
+    lokasi_data = os.path.join(root_dir, "Dataset_Abalone_Lengkap.xlsx")
+    df = load_data(lokasi_data)
     target = "Rings"
     X = df.drop(columns=[target])
     y = df[target]
@@ -36,7 +43,8 @@ def main():
         X, y, test_size=0.20, random_state=42
     )
 
-    _, kolom_angka, kolom_kategori = buat_preprocessor(list(X.columns))
+    kolom_kategori = ["Sex"]
+    kolom_angka = [c for c in X.columns if c not in kolom_kategori]
 
     baseline_val = float(y_train.mean())
     pred_baseline = np.full(shape=len(y_test), fill_value=baseline_val)
@@ -58,7 +66,7 @@ def main():
 
     for nama, estimator in model_kandidat.items():
         pipa = Pipeline(steps=[
-            ("preprocess", buat_preprocessor(list(X.columns))[0]),
+            ("preprocess", build_preprocessor(kolom_angka, kolom_kategori)),
             ("model", estimator),
         ])
         hasil_cv = cross_validate(
