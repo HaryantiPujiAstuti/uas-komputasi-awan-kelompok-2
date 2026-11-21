@@ -60,6 +60,6 @@
 
 ## 7. Reproduksi Hasil
 1. Pastikan posisi kerja berada di *branch* `main` (setelah PR di-*merge*) pada direktori utama repositori (`uas-komputasi-awan-kelompok-2`).
-2. Pasang *library* yang diperlukan sesuai `requirements.txt` proyek (menggunakan `scikit-learn==1.9.1`):
+2. Pasang *library* yang diperlukan dari *root* repositori:
    ```powershell
-   pip install pandas numpy scikit-learn==1.9.1 matplotlib seaborn openpyxl joblib
+   pip install -r requirements.txt

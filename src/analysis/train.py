@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import joblib
+import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import Ridge
@@ -23,6 +24,36 @@ def hitung_metrik(y_true, y_pred):
         "rmse": round(float(root_mean_squared_error(y_true, y_pred)), 4),
         "r2": round(float(r2_score(y_true, y_pred)), 4),
     }
+
+
+def simpan_plot_evaluasi(y_test, pred_test, output_path="docs/evidence/evaluasi_test_set.png"):
+    residual = np.asarray(y_test) - np.asarray(pred_test)
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+    # Aktual vs Prediksi
+    axes[0].scatter(y_test, pred_test, alpha=0.5)
+    nilai_min = min(float(np.min(y_test)), float(np.min(pred_test)))
+    nilai_max = max(float(np.max(y_test)), float(np.max(pred_test)))
+    axes[0].plot(
+        [nilai_min, nilai_max],
+        [nilai_min, nilai_max],
+        "r--",
+    )
+    axes[0].set_title("Aktual vs Prediksi (Test Set)")
+    axes[0].set_xlabel("Rings Aktual")
+    axes[0].set_ylabel("Rings Prediksi")
+
+    # Plot Residual
+    axes[1].scatter(pred_test, residual, alpha=0.5)
+    axes[1].axhline(0, color="red", linestyle="--")
+    axes[1].set_title("Plot Residual (Test Set)")
+    axes[1].set_xlabel("Rings Prediksi")
+    axes[1].set_ylabel("Residual (Aktual - Prediksi)")
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
 
 
 def main():
@@ -96,6 +127,8 @@ def main():
     model_terbaik.fit(X_train, y_train)
     pred_test = model_terbaik.predict(X_test)
     metrik_test = hitung_metrik(y_test, pred_test)
+
+    simpan_plot_evaluasi(y_test, pred_test, "docs/evidence/evaluasi_test_set.png")
 
     print(f"\nModel terbaik: {nama_terbaik}")
     print(
