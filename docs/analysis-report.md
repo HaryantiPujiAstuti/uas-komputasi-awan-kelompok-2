@@ -1,17 +1,22 @@
 # Laporan Analisis dan Pemodelan Prediksi Rings Abalone
 
 ## 1. Tujuan, Sumber Data, dan Ringkasan Dataset
-- **Rumusan masalah**: Membangun model regresi untuk memprediksi jumlah cincin cangkang abalone (`Rings`) sebagai variabel respon kuantitatif berdasarkan karakteristik jenis kelamin dan ukuran fisik tubuh abalone. Perkiraan umur biologis abalone umumnya dihitung sebagai $\text{Rings} + 1{,}5$ tahun.
-- **Sumber data dan akses**: Data bersumber dari dataset Abalone (`Dataset_Abalone_Lengkap.xlsx`, merujuk pada *UCI Machine Learning Repository — Abalone Dataset* berlisensi CC BY 4.0) yang diakses pada 21 November 2026 melalui `https://archive.ics.uci.edu/dataset/1/abalone` serta berkas lokal pada direktori utama repositori.
+
+- **Rumusan masalah**: Membangun model regresi untuk memprediksi jumlah cincin cangkang abalone (`Rings`) sebagai variabel respons kuantitatif berdasarkan karakteristik jenis kelamin dan ukuran fisik tubuh abalone. Jumlah cincin dapat digunakan untuk memperkirakan umur biologis abalone, yang secara umum dihitung menggunakan rumus $\text{Umur} = \text{Rings} + 1{,}5$ tahun.
+
+- **Sumber data dan akses**: Data bersumber dari dataset Abalone (`Dataset_Abalone_Lengkap.xlsx`) yang merujuk pada *UCI Machine Learning Repository — Abalone Dataset* dengan lisensi CC BY 4.0. Dataset diakses pada 21 November 2026 melalui https://archive.ics.uci.edu/dataset/1/abalone serta berkas lokal yang tersedia pada direktori utama repositori.
+
 - **Struktur dan ringkasan EDA**:
-  - Dataset terdiri atas **4.177 baris** pengamatan dan **9 kolom**, terdiri dari **1 variabel target** (`Rings`, bilangan bulat) dan **8 variabel prediktor**:
-    - **Fitur kategorikal (1)**: `Sex` (`M` = *Male*, `F` = *Female*, `I` = *Infant*).
-    - **Fitur numerik (7)**: `Length`, `Diameter`, `Height`, `Whole weight`, `Shucked weight`, `Viscera weight`, dan `Shell weight`.
+  - Dataset terdiri atas **4.177 baris** pengamatan dan **9 kolom**, yang mencakup **1 variabel target** (`Rings`) dan **8 variabel prediktor**.
+  - **Fitur kategorikal (1)**: `Sex`, dengan kategori `M` (*Male*), `F` (*Female*), dan `I` (*Infant*).
+  - **Fitur numerik (7)**: `Length`, `Diameter`, `Height`, `Whole weight`, `Shucked weight`, `Viscera weight`, dan `Shell weight`.
   - Tidak ditemukan nilai hilang (*missing values*) maupun baris duplikat pada dataset mentah.
-  - Korelasi linear (*Pearson*) tertinggi terhadap variabel target `Rings` ditunjukkan oleh **`Shell weight` sebesar `0,63`**, diikuti oleh fitur dimensi fisik dan bobot lainnya yang juga berkorelasi positif kuat antar-prediktor (indikasi multikolinearitas tinggi pada fitur ukuran dan berat).
+  - Korelasi linear (*Pearson*) tertinggi terhadap variabel target `Rings` ditunjukkan oleh fitur `Shell weight`, yaitu sebesar **0,63**. Fitur dimensi fisik dan bobot lainnya juga menunjukkan korelasi positif terhadap variabel target Rings serta korelasi yang relatif kuat antar-prediktor, sehingga terdapat indikasi multikolinearitas pada fitur ukuran dan berat.
+
 - **Perlakuan `Height = 0` dan skala data**:
-  - Berdasarkan eksplorasi awal pada `eda_v2.ipynb`, terdapat **2 baris** dengan nilai `Height = 0` dari 4.177 baris (sekitar **0,05%**). Nilai nol tersebut dipertahankan sebagai bagian dari data awal, dan dampaknya terhadap model belum diuji secara khusus melalui analisis sensitivitas terpisah.
-  - Seluruh fitur kontinu pada dataset UCI berada pada skala yang telah dibagi `200`. Oleh karena itu, data input yang dikirim ke layanan API tidak boleh menggunakan satuan mentah (seperti milimeter atau gram secara langsung) apabila tidak sesuai skala data latih, melainkan harus mengikuti skala serta nama kolom yang persis sama dengan skema pada `src/app/model/features.json` dan `docs/interface-contract.md`.
+  - Berdasarkan eksplorasi awal pada `eda_v2.ipynb`, terdapat **2 baris** dengan nilai `Height = 0` dari total 4.177 baris pengamatan atau sekitar **0,05%**. Kedua pengamatan tersebut tetap dipertahankan dalam dataset karena tidak dilakukan penghapusan khusus terhadap nilai tersebut. Dampaknya terhadap kinerja model belum diuji secara terpisah melalui analisis sensitivitas.
+  - Seluruh fitur numerik menggunakan nilai pada **skala asli dataset UCI Abalone**. Tidak dilakukan pembagian nilai fitur dengan `200` sebelum proses pelatihan model.
+  - Standardisasi fitur numerik dilakukan secara otomatis menggunakan `StandardScaler()` dalam pipeline praproses. Dengan demikian, data input yang dikirim ke layanan API harus menggunakan nilai pada skala asli dataset, bukan nilai yang telah dibagi `200`, serta mengikuti nama fitur yang tercantum dalam `src/app/model/features.json` dan `docs/interface-contract.md`.
 
 ## 2. Pembagian Data dan Pencegahan Data Leakage
 - **Skema pemisahan data**: Dataset dibagi secara acak menjadi **data latih (*train set*) sebesar 80% (`3.341` baris)** dan **data uji (*test set*) sebesar 20% (`836` baris)** menggunakan `train_test_split(..., test_size=0.20, random_state=42)`. Data uji tidak digunakan dalam proses *fitting* praproses, pelatihan model, maupun pemilihan model melalui *cross-validation*; evaluasi akhir dilakukan menggunakan data uji setelah model terbaik ditentukan berdasarkan data latih. *(Catatan: eksplorasi data awal dilakukan pada keseluruhan dataset 4.177 baris).*
@@ -48,10 +53,13 @@
   - Secara numerik, MAE turun sekitar **33,9%** (dari `2,3848` menjadi `1,5761`), RMSE turun sekitar **31,7%** (dari `3,2906` menjadi `2,2480`), dan R² meningkat dari `-0,0003` menjadi `0,5332`.
   - Nilai MAE dan RMSE pada data uji (`1,5761` dan `2,2480`) relatif berdekatan dengan hasil validasi silang (`1,5180` dan `2,1436`), yang menunjukkan bahwa kinerja pada data uji relatif konsisten dengan kinerja selama validasi silang, meskipun evaluasi tersebut belum sepenuhnya menjamin tidak adanya *overfitting*.
 
-## 5. Analisis Residual dan Interpretasi Plot
-- **Plot Aktual vs Prediksi (`docs/evidence/evaluasi_test_set.png`)**: Sebaran titik prediksi mengikuti arah diagonal secara umum pada rentang tengah (`Rings` sekitar 6–13), namun pada pengamatan dengan nilai `Rings` aktual yang tinggi, titik prediksi cenderung berada di bawah garis diagonal (*underprediction*).
-- **Residual terhadap nilai prediksi dan pola kesalahan**: Residual ($e_i = y_i - \hat{y}_i$) terpusat di sekitar nol pada rentang prediksi rendah hingga menengah, sementara pada nilai yang lebih tinggi terlihat kecenderungan residual positif besar (akibat *underprediction*) serta indikasi pola varians residual yang tidak konstan secara visual (belum diuji melalui uji formal heteroskedastisitas).
-- **Distribusi residual dan struktur target**: Pola garis-garis miring yang tampak pada plot residual merupakan hal yang wajar karena nilai `Rings` pada dataset berbentuk bilangan bulat diskrit, sedangkan prediksi model regresi menghasilkan nilai kontinu.
+## 5. Evaluasi Visual dan Analisis Residual
+
+Evaluasi visual dilakukan menggunakan grafik perbandingan nilai aktual dan prediksi serta plot residual pada data pengujian (*test set*). Grafik aktual dan prediksi digunakan untuk melihat kesesuaian hasil prediksi terhadap nilai Rings sebenarnya. Hasil visual menunjukkan bahwa prediksi model cenderung mengikuti pola nilai aktual, meskipun masih terdapat penyimpangan pada beberapa pengamatan, terutama pada nilai Rings yang relatif tinggi.
+
+Plot residual digunakan untuk mengamati pola kesalahan prediksi, dengan residual dihitung sebagai selisih antara nilai aktual dan nilai prediksi. Residual yang berada di sekitar garis nol menunjukkan bahwa kesalahan prediksi relatif kecil. Namun, penyebaran residual yang semakin besar pada beberapa nilai prediksi mengindikasikan bahwa kesalahan model belum sepenuhnya seragam.
+
+Secara keseluruhan, hasil evaluasi visual menunjukkan bahwa model Gradient Boosting mampu menangkap pola hubungan antara fitur-fitur abalone dan jumlah Rings, meskipun akurasi prediksi masih dapat berbeda pada rentang nilai Rings tertentu.
 
 ## 6. Keterbatasan Model dan Implikasi Operasional
 - **Keterbatasan akurasi pada nilai tinggi**: Model masih cenderung menaksir lebih rendah pada abalone dengan jumlah cincin yang tinggi karena pertumbuhan ukuran/bobot melambat pada fase lanjut dan data pada rentang tinggi lebih jarang.
