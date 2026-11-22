@@ -8,15 +8,23 @@ Proyek mencakup tahapan analisis data, preprocessing, pelatihan dan evaluasi mod
 
 ## 2. Dataset
 
-Dataset yang digunakan adalah Abalone dari UCI Machine Learning Repository.
+Dataset yang digunakan adalah **Abalone** dari UCI Machine Learning Repository. Dataset ini digunakan untuk memprediksi jumlah cincin (*Rings*) berdasarkan karakteristik fisik abalone.
 
 - Sumber: [UCI Machine Learning Repository – Abalone](https://archive.ics.uci.edu/dataset/1/abalone)
-- File dataset: `Dataset_Abalone_Lengkap.xlsx`
+- File dataset dalam repository: `Dataset_Abalone_Lengkap.xlsx`
 - Jumlah observasi: 4.177 baris
-- Jumlah variabel: 9 kolom
+- Jumlah variabel: 9 kolom (8 prediktor dan 1 target)
 - Variabel target: `Rings`
+- Tahun publikasi dataset: 1994
+- Lisensi: Creative Commons Attribution 4.0 International (CC BY 4.0)
+- DOI: [10.24432/C55C7W](https://doi.org/10.24432/C55C7W)
+- Tanggal akses sumber: 22 November 2026
 
 Variabel prediktor terdiri atas `Sex`, `Length`, `Diameter`, `Height`, `Whole weight`, `Shucked weight`, `Viscera weight`, dan `Shell weight`.
+
+**Sitasi dataset:**
+
+Nash, W., Sellers, T., Talbot, S., Cawthorn, A., & Ford, W. (1994). *Abalone* [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C55C7W.
 
 ## 3. Struktur Repository
 
