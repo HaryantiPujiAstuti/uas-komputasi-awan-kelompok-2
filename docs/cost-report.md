@@ -1,41 +1,38 @@
 # Laporan Estimasi dan Realisasi Biaya Cloud
 
 ## 1. Informasi Provider dan Layanan
-- **Penyedia Layanan Cloud:** Google Cloud Platform (GCP)
-- **Layanan Komputasi:** Google Cloud Run (Managed Container)
-- **Region:** `asia-southeast2` (Jakarta)
-- **Sumber Harga Resmi:** [Google Cloud Pricing Calculator](https://cloud.google.com/products/calculator) & [Cloud Run Pricing](https://cloud.google.com/run/pricing)
-- **Tanggal Estimasi Awal:** 22 November 2026
+- **Penyedia Layanan Cloud:** Snapdeploy (Managed Container Platform)
+- **Paket / Tier:** Free Tier (Gratis tanpa kartu kredit)
+- **Alasan Pemilihan Alternatif:** Dipilih sebagai alternatif pengganti Google Cloud Run karena kelompok tidak menggunakan metode pembayaran/kartu kredit untuk aktivasi billing, serta sudah mendukung deployment berbasis Docker container secara gratis.
+- **Sumber Harga Resmi:** Halaman Pricing resmi Snapdeploy (Free Plan)
+- **Tanggal Estimasi Awal:** 23 November 2026
 
 ---
 
 ## 2. Asumsi Penggunaan untuk Estimasi Awal
-Untuk kebutuhan pengembangan, pengujian beban (*load test*), dan demo UAS selama periode proyek (± 1 minggu), digunakan asumsi konfigurasi dan trafik sebagai berikut:
-- **Alokasi CPU:** 1 vCPU (hanya dialokasikan saat memproses *request* / *CPU only during request processing*).
-- **Alokasi Memori (RAM):** 512 MiB.
-- **Jumlah Instance:** Minimum `0` (*scale-to-zero*), Maksimum `2` (`max instances = 2`).
-- **Estimasi Volume Permintaan:** 10.000 *request* per bulan (mencakup pengujian fungsional, *uptime check* `/health`, *load test* 300 *request*, dan demo presentasi).
-- **Rata-rata Durasi Eksekusi per Request:** 200 ms (0,2 detik).
-- **Layanan Pendukung:** Cloud Logging dan Artifact Registry (penyimpanan *container image* berukuran < 500 MB).
+Untuk kebutuhan pengembangan, pengujian beban (*load test*), dan demo UAS selama periode proyek (± 1 minggu), digunakan asumsi sebagai berikut:
+- **Jenis Deployment:** Single Docker Container (`Dockerfile` dari repository GitHub).
+- **Kapasitas Resource:** Mengikuti batas alokasi standar *Free Tier* Snapdeploy.
+- **Estimasi Volume Permintaan:** 10.000 *request* selama masa pengujian & demo (mencakup pengujian fungsional, *health check* `/health`, *load test* 300 *request*, dan presentasi).
+- **Layanan Pendukung:** Built-in container logs dan auto-deploy terintegrasi dengan GitHub.
 
 ---
 
 ## 3. Perbandingan Estimasi vs Realisasi Biaya
 
-*(Catatan: Sesuai pedoman proyek, komponen biaya yang belum berjalan pada tahap pra-deployment dicatat sebagai `tidak diukur` dan akan diperbarui setelah layanan aktif serta melewati masa pengamatan billing).*
+*(Catatan: Sesuai pedoman proyek, komponen yang belum selesai diamati dicatat sebagai `tidak diukur` dan diperbarui setelah layanan live serta melewati periode pengamatan dashboard).*
 
 | Komponen Layanan | Estimasi Biaya (Asumsi) | Biaya Aktual (Realisasi) | Selisih | Keterangan |
 |---|---|---|---|---|
-| **Cloud Run (CPU & Memory)** | $0,00 (Rp0) — masuk dalam *Always Free Tier* GCP (2 juta *request*, 180.000 vCPU-detik, dan 360.000 GiB-detik per bulan) | `tidak diukur` | `tidak diukur` | Menunggu proses deployment dan pengamatan billing harian |
-| **Artifact Registry (Storage Image)** | $0,00 (Rp0) — masuk dalam *Free Tier* (hingga 0,5 GB penyimpanan per bulan) | `tidak diukur` | `tidak diukur` | Ukuran image Docker diperkirakan < 500 MB |
-| **Cloud Logging & Monitoring** | $0,00 (Rp0) — masuk dalam kuota gratis bulanan (50 GiB log/bulan) | `tidak diukur` | `tidak diukur` | Pengamatan log dilakukan selama periode aktif layanan |
+| **Snapdeploy Container Hosting (Free Tier)** | $0,00 (Rp0) — paket gratis tidak memungut biaya bulanan/per-request selama dalam batas kuota free tier | `tidak diukur` | `tidak diukur` | Menunggu konfirmasi deployment live dan tangkapan layar dashboard akun |
+| **GitHub Actions (CI Workflow)** | $0,00 (Rp0) — gratis untuk public repository | `tidak diukur` | `tidak diukur` | Berjalan otomatis setiap push/PR ke `main` |
+| **Built-in Logging & Monitoring** | $0,00 (Rp0) — sudah termasuk dalam paket gratis platform | `tidak diukur` | `tidak diukur` | Pengamatan log dilakukan selama periode aktif layanan |
 | **Total Biaya** | **$0,00 (Rp0)** | `tidak diukur` | `tidak diukur` | Periode pengamatan aktual: *(diisi setelah deploy)* |
 
 ---
 
 ## 4. Analisis dan Pengendalian Biaya
-1. **Pemanfaatan *Scale-to-Zero*:** Dengan konfigurasi `min instances = 0`, tidak ada biaya komputasi yang terpakai saat layanan tidak menerima *request*.
-2. **Pembatasan *Max Instances*:** Konfigurasi `max instances = 2` diterapkan sebagai pengaman untuk mencegah lonjakan tagihan apabila terjadi trafik tidak wajar pada endpoint publik.
-3. **Budget Alert:** Peringatan anggaran (*budget alert*) dipasang pada akun cloud sebelum layanan dijalankan untuk memantau potensi pemakaian di luar kuota gratis.
-4. **Biaya yang Tidak Diukur:** Biaya transfer data jaringan keluar (*egress*) antar-region dalam skala kecil (< 1 GB/bulan) dan biaya listrik/perangkat pengembangan lokal tidak diukur dalam laporan cloud ini.
-5. **Rencana *Teardown*:** Seluruh *service* Cloud Run dan *image* di Artifact Registry akan dihapus segera setelah presentasi/demo selesai untuk memastikan tidak ada biaya berjalan setelah proyek berakhir.
+1. **Zero-Cost dengan Free Tier:** Penggunaan paket gratis Snapdeploy memastikan tidak ada biaya tagihan tak terduga (*overbilling*) selama masa pengujian maupun demo.
+2. **Perbedaan Operasional Platform Gratis:** Berbeda dengan Google Cloud Run yang memiliki konfigurasi *autoscaling* multi-instance berbayar, layanan *container* gratis umumnya berjalan pada satu *instance* dengan batasan resource tertentu dan berpotensi mengalami *sleep/idle* jika lama tidak diakses (sehingga perlu dilakukan *warm-up* `GET /health` sebelum demo).
+3. **Biaya yang Tidak Diukur:** Biaya koneksi internet lokal, listrik, dan perangkat pengujian lokal tidak diukur dalam laporan cloud ini.
+4. **Rencana *Teardown*:** Setelah presentasi/demo selesai, layanan (*service/app*) pada dashboard Snapdeploy akan dihapus atau dinonaktifkan dan disimpan bukti tangkapan layarnya.
