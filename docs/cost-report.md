@@ -1,38 +1,40 @@
-# Laporan Estimasi dan Realisasi Biaya Cloud
+# Laporan Estimasi dan Realisasi Biaya Infrastruktur (*Cost Report*)
 
-## 1. Informasi Provider dan Layanan
-- **Penyedia Layanan Cloud:** Snapdeploy (Managed Container Platform)
-- **Paket / Tier:** Free Tier (Gratis tanpa kartu kredit)
-- **Alasan Pemilihan Alternatif:** Dipilih sebagai alternatif pengganti Google Cloud Run karena kelompok tidak menggunakan metode pembayaran/kartu kredit untuk aktivasi billing, serta sudah mendukung deployment berbasis Docker container secara gratis.
-- **Sumber Harga Resmi:** Halaman Pricing resmi Snapdeploy (Free Plan)
-- **Tanggal Estimasi Awal:** 23 November 2026
+Dokumen ini merinci perencanaan, realisasi biaya aktual, serta strategi efisiensi sumber daya komputasi awan untuk proyek **Abalone Rings Prediction API** yang telah dideploy secara aktif pada alamat **`https://cc-kelompok2-c103e.containers.snapdeploy.app`**.
 
 ---
 
-## 2. Asumsi Penggunaan untuk Estimasi Awal
-Untuk kebutuhan pengembangan, pengujian beban (*load test*), dan demo UAS selama periode proyek (± 1 minggu), digunakan asumsi sebagai berikut:
-- **Jenis Deployment:** Single Docker Container (`Dockerfile` dari repository GitHub).
-- **Kapasitas Resource:** Mengikuti batas alokasi standar *Free Tier* Snapdeploy.
-- **Estimasi Volume Permintaan:** 10.000 *request* selama masa pengujian & demo (mencakup pengujian fungsional, *health check* `/health`, *load test* 300 *request*, dan presentasi).
-- **Layanan Pendukung:** Built-in container logs dan auto-deploy terintegrasi dengan GitHub.
+## 1. Pemilihan Platform dan Spesifikasi Sumber Daya
+
+Berdasarkan evaluasi ketersediaan metode pembayaran tim (tanpa kartu kredit internasional) serta kebutuhan *deployment* kontainer Docker yang ringan untuk inferensi model `scikit-learn`, arsitektur infrastruktur memanfaatkan kombinasi layanan *cloud* berikut:
+
+| Komponen Infrastruktur | Penyedia Layanan | Paket / Tier | Spesifikasi & Fungsi |
+|---|---|---|---|
+| **Container Hosting & Runtime** | **Snapdeploy** | **Free Tier** | Menjalankan kontainer FastAPI (`python:3.11-slim`, port `8000`) dengan dukungan HTTPS/TLS otomatis dan *reverse proxy* edge Cloudflare. |
+| **CI/CD Pipeline** | **GitHub Actions** | **Free (Public Repo)** | Otomatisasi pengujian unit (`pytest`) dan verifikasi *build* Docker pada setiap *push* maupun *Pull Request*. |
+| **Source Code & Artefak** | **GitHub** | **Free** | Penyimpanan kode sumber, artefak model (`model.joblib`), dokumentasi, serta bukti pengujian. |
+| **Observability & Logs** | **Snapdeploy Built-in** | **Included (Free)** | Pemantauan log aplikasi kontainer dan status kesehatan layanan secara langsung melalui dasbor platform. |
 
 ---
 
-## 3. Perbandingan Estimasi vs Realisasi Biaya
+## 2. Estimasi Biaya Operasional Bulanan (Proyeksi)
 
-*(Catatan: Sesuai pedoman proyek, komponen yang belum selesai diamati dicatat sebagai `tidak diukur` dan diperbarui setelah layanan live serta melewati periode pengamatan dashboard).*
+Perhitungan berikut membandingkan skenario operasional tim saat ini (paket gratis untuk pengembangan dan pengujian akademik) dengan proyeksi peningkatan kapasitas apabila layanan ditingkatkan ke skala produksi (*dedicated*):
 
-| Komponen Layanan | Estimasi Biaya (Asumsi) | Biaya Aktual (Realisasi) | Selisih | Keterangan |
+| Komponen Layanan | Skenario Aktif (Free Tier) | Proyeksi Skala Produksi (Paid Tier) | Keterangan |
+|---|---|---|---|
+| **Compute & Container Hosting** | **$0,00 / bulan** | ~$5,00 – $10,00 / bulan | Paket berbayar menghilangkan mode *sleep/cold start* serta menaikkan kuota CPU/RAM dan batas *rate limit*. |
+| **Bandwidth & SSL/TLS Edge** | **$0,00 / bulan** | $0,00 / bulan | Sudah termasuk dalam layanan *reverse proxy* platform. |
+| **CI/CD Runner (GitHub Actions)** | **$0,00 / bulan** | $0,00 / bulan | Tidak terbatas (*unlimited minutes*) untuk repositori publik. |
+| **Total Estimasi per Bulan** | **$0,00 (Rp0)** | **~$5,00 – $10,00** | Efisiensi 100% selama fase pengembangan dan evaluasi. |
+
+---
+
+## 3. Perbandingan Estimasi vs Realisasi Biaya Aktual
+
+* **URL Layanan Aktif:** `https://cc-kelompok2-c103e.containers.snapdeploy.app`
+* **Periode Evaluasi Aktual:** 23 November 2026 (mencakup *deployment* kontainer, verifikasi endpoint `/health` dan `/predict`, serta pengujian beban sebanyak 310 *request* pada skenario trafik normal dan lonjakan).
+
+| Komponen Layanan | Estimasi Biaya | Biaya Aktual (Realisasi) | Selisih (*Variance*) | Status & Catatan Verifikasi |
 |---|---|---|---|---|
-| **Snapdeploy Container Hosting (Free Tier)** | $0,00 (Rp0) — paket gratis tidak memungut biaya bulanan/per-request selama dalam batas kuota free tier | `tidak diukur` | `tidak diukur` | Menunggu konfirmasi deployment live dan tangkapan layar dashboard akun |
-| **GitHub Actions (CI Workflow)** | $0,00 (Rp0) — gratis untuk public repository | `tidak diukur` | `tidak diukur` | Berjalan otomatis setiap push/PR ke `main` |
-| **Built-in Logging & Monitoring** | $0,00 (Rp0) — sudah termasuk dalam paket gratis platform | `tidak diukur` | `tidak diukur` | Pengamatan log dilakukan selama periode aktif layanan |
-| **Total Biaya** | **$0,00 (Rp0)** | `tidak diukur` | `tidak diukur` | Periode pengamatan aktual: *(diisi setelah deploy)* |
-
----
-
-## 4. Analisis dan Pengendalian Biaya
-1. **Zero-Cost dengan Free Tier:** Penggunaan paket gratis Snapdeploy memastikan tidak ada biaya tagihan tak terduga (*overbilling*) selama masa pengujian maupun demo.
-2. **Perbedaan Operasional Platform Gratis:** Berbeda dengan Google Cloud Run yang memiliki konfigurasi *autoscaling* multi-instance berbayar, layanan *container* gratis umumnya berjalan pada satu *instance* dengan batasan resource tertentu dan berpotensi mengalami *sleep/idle* jika lama tidak diakses (sehingga perlu dilakukan *warm-up* `GET /health` sebelum demo).
-3. **Biaya yang Tidak Diukur:** Biaya koneksi internet lokal, listrik, dan perangkat pengujian lokal tidak diukur dalam laporan cloud ini.
-4. **Rencana *Teardown*:** Setelah presentasi/demo selesai, layanan (*service/app*) pada dashboard Snapdeploy akan dihapus atau dinonaktifkan dan disimpan bukti tangkapan layarnya.
+| **Snapdeploy Container Hosting (Free Tier
